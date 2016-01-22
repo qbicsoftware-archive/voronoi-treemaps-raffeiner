@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="eng">
+<head>
+	<meta charset="utf-8" />
+	<title>Interactive Voronoi</title>
+	<link rel="stylesheet" href="main.css">
+		
+	<script type='text/javascript' src="http://code.jquery.com/jquery-latest.min.js"></script>
+	<script type='text/javascript'>//<![CDATA[
+	$(document).ready(function() {
+	
+		/* data holder */
+		var treemapWidth = $(".treemap").width(),
+			treemapHeight = $(".treemap").height(),
+			ratios = [];
+		
+		$("polygon[ratio1]").each(function(){
+			ratios.push($(this).attr("ratio1"));
+		$("polygon[ratio2]").each(function(){
+			ratios.push($(this).attr("ratio2"));
+		$("polygon[ratio3]").each(function(){	
+			ratios.push($(this).attr("ratio3"));
+		})
+		
+		var minRatios = Math.min.apply(Math, ratios)
+		var maxRatios = Math.max.apply(Math, ratios)
+		
+		/* utility functions */
+		function Interpolate(start, end, min, max, v) {
+			var s = start,	
+				e = end,
+				final = s + (((v-min)/(max-min))*(e - s));
+			return Math.floor(final);
+		}
+		
+		function hexToRgb(hex) {
+			var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+			return result ? {
+				r: parseInt(result[1], 16),
+				g: parseInt(result[2], 16),
+				b: parseInt(result[3], 16)
+			} : null;
+		}
+		
+		/* initialize polygons stroke-width */
+		$("polygon.lvl1")
+			.css("stroke-width", 7)
+		$("polygon.lvl2")
+			.css("stroke-width", 4)
+		$("polygon.lvl3")
+			.css("stroke-width", 2)
+		
+		/* initialize polygons z-positioning */
+		$("polygon.lvl2")
+			.css("fill", "none")
+			.appendTo("#polygons");
+		$("polygon.lvl1")
+			.css("fill", "none")
+			.appendTo("#polygons");
+			
+		/* initialize shown text to level1 */
+		$(".treemap text")
+			.hide();
+		$("text.lvl1")
+			.show();
+			
+		/* add mouse interaction */
+		$("polygon.lvl3")
+			.hover(function() {
+				$(this)
+					.css("stroke-width", 6)
+					//move to front
+					.appendTo("#polygons")
+				},
+			function() {
+				$(this)
+					.css("stroke-width", 2);
+					
+				//restore z-positioning
+				$("polygon.lvl2")
+					.appendTo("#polygons");
+				$("polygon.lvl1")
+					.appendTo("#polygons");
+				})				
+			//link to custom url/pdb on click
+			.click(function() {
+				window.open("http://www.rcsb.org/pdb/protein/" + $(this).attr("name"));
+			});
+		
+		/* switch shown names with radio buttons */
+		$("input[name='showNames']").change(function() {
+			if ($(this).val() == "level1") {
+				$(".treemap text")
+					.hide();
+				$("text.lvl1")
+					.show();
+			}else if($(this).val() == "level2") {
+				$(".treemap text")
+					.hide();
+				$("text.lvl2")
+					.show();
+			}else if($(this).val() == "level3") {
+				$(".treemap text")
+					.hide();
+				$("text.lvl3")
+					.show();
+			}
+		});
+		
+		/* checkbox to hide polygon level2 */
+		$("#hide_polygons_level2").change(function() {
+			$("#hide_polygons_level2").val($(this).is(':checked'));
+		});
+
+		$("#hide_polygons_level2").click(function() {
+			if ($(this).is(':checked')) {
+				//fill level1, hide level2
+				$("polygon.lvl1")
+					.css("fill", "gray");
+				$("polygon.lvl2")
+					.hide();
+				
+				//click radio button for level1 names and disable level2
+				$("#show_names_level1")
+						.click();
+				$("#show_names_level2")
+					.attr("disabled", true);
+				
+				//click and disable checkbox for level3 polygons
+				if(!$("#hide_polygons_level3").is(':checked')){
+					$("#hide_polygons_level3")
+						.click();
+				}
+				$("#hide_polygons_level3")
+					.attr("disabled", true);				
+			} else {
+				//show level2, unfill level1
+				$("polygon.lvl2")
+					.show();
+				$("polygon.lvl1")
+					.css("fill", "none");
+				
+				//reenable buttons
+				$("#show_names_level2")
+					.attr("disabled", false);
+				$("#hide_polygons_level3")
+					.attr("disabled", false);
+			}
+		});
+		
+		/* checkbox to hide polygon level3 */
+		$("#hide_polygons_level3").change(function() {
+			$("#hide_polygons_level3").val($(this).is(':checked'));
+		});
+
+		$("#hide_polygons_level3").click(function() {
+			if ($(this).is(':checked')) {
+				//fill level2, hide level3
+				$("polygon.lvl2")
+					.css("fill", "gray");
+				$("polygon.lvl3")
+					.hide();
+				
+				//click radio button for level2 names if level3 was checked, fill level2 polygons and disable level3
+				if($("#show_names_level3").is(":checked")) {
+					$("#show_names_level2")
+						.click();
+				}
+				$("#show_names_level3")
+					.attr("disabled", true);
+					
+			} else {
+				//show level3, unfill level2
+				$("polygon.lvl3")
+					.show();
+				$("polygon.lvl2")
+					.css("fill", "none");
+				
+				//reenable buttons
+				$("#show_names_level3")
+					.attr("disabled", false);
+			}
+		});
+		
+		/* switch ratios with radio buttons */			
+		function updateRatios() {
+			updateTooltips();
+			updateColors();
+		}
+		updateRatios();
+		
+		$("input[name='selectRatio']").on("change", function() {
+			updateRatios();
+		})
+			
+		/* zooming */
+		$(".zoom-range").on("input change", function() {
+			$(".zoom-percent")
+				.text(Math.round($(this).val()*100) + "%");
+			$(".treemap")
+				.attr("width", treemapWidth*$(this).val())
+				.attr("height", treemapHeight*$(this).val())
+		})
+		
+		/* tooltips */
+		function updateTooltips() {
+			$("polygon.lvl3").attr("title", function() {
+				return $(this).attr($("input[name='selectRatio']:checked").val());
+			});
+		}
+		
+		/* coloring */
+		function Color(_r, _g, _b) {
+			var r, g, b;
+			var setColors = function(_r, _g, _b) {
+				r = _r;
+				g = _g;
+				b = _b;
+			};
+		
+			setColors(_r, _g, _b);
+			this.getColors = function() {
+				var colors = {
+					r: r,
+					g: g,
+					b: b
+				};
+				return colors;
+			};
+		}
+		
+		// threshold slider range
+		$(".threshold-range")
+			.attr("min", Math.floor(minRatios))
+			.attr("max", Math.ceil(maxRatios))
+			
+		function updateColors() {
+			$("polygon.lvl3").css("fill", function() {
+				var val = parseFloat($(this).attr($("input[name='selectRatio']:checked").val()));
+				return calculateColor(val);
+			});
+			updateColorKey();
+		}
+		
+		// calculate colors
+		function calculateColor(val) {
+			var threshold = $(".threshold-range").val();
+				exclude = $("#exclude_val_input");
+			
+			// exclude specific value
+			if (!exclude.attr("disabled")){
+				if(val==exclude.val())
+					return "rgb(200,200,200)";
+			}
+			
+			// value equals threshold	
+			else if(val==threshold)
+				return "rgb(170,170,170)";
+			
+			var	min = minRatios,
+				max = maxRatios,
+				
+				startInput = hexToRgb($("#colorBelowHigh").val()),
+				mid1Input = hexToRgb($("#colorBelowLow").val()),
+				mid2Input = hexToRgb($("#colorAboveLow").val()),
+				endInput = hexToRgb($("#colorAboveHigh").val()),
+				
+				start = new Color(startInput.r, startInput.g, startInput.b),
+				mid1 = new Color(mid1Input.r, mid1Input.g, mid1Input.b),
+				mid2 = new Color(mid2Input.r, mid2Input.g, mid2Input.b),
+				end = new Color(endInput.r,endInput.g,endInput.b);
+					
+			//exponential scaling
+			if($("#scaleType").val()=="exp"){
+				if(val<0)
+					val = -Math.exp(Math.abs(val));
+				else
+					val = Math.exp(val);
+				if(min<0)
+					min = -Math.exp(Math.abs(min));
+				else
+					min = Math.exp(min);
+				if(max<0)
+					max = -Math.exp(Math.abs(max));
+				else
+					max = Math.exp(max);
+				if(threshold<0)
+					threshold = -Math.exp(Math.abs(threshold));
+				else
+					threshold = Math.exp(threshold);
+			}
+			
+			//logarithmic scaling
+			if($("#scaleType").val()=="log"){
+				if(val<0)
+					val = -Math.pow(10, Math.abs(val));
+				else
+					val = Math.pow(10, val);
+				if(min<0)
+					min = -Math.pow(10, Math.abs(min));
+				else
+					min = Math.pow(10, min);
+				if(max<0)
+					max = -Math.pow(10, Math.abs(max));
+				else
+					max = Math.pow(10, max);
+				if(threshold<0)
+					threshold = -Math.pow(10, Math.abs(threshold));
+				else
+					threshold = Math.pow(10, threshold);
+			}
+			
+			if(val<threshold){
+				end = mid1;
+				max = threshold;
+			}
+			else if(val>threshold){
+				start = mid2;
+				min = threshold;
+			}
+			
+			var	startColors = start.getColors(),
+				endColors = end.getColors(),
+				
+				r = Interpolate(startColors.r, endColors.r, min, max, val),
+				g = Interpolate(startColors.g, endColors.g, min, max, val),
+				b = Interpolate(startColors.b, endColors.b, min, max, val);
+				
+			return "rgb("+r+","+g+","+b+")";
+		}
+		
+		// color key
+		function updateColorKey () {
+			var val = maxRatios,
+				mid = (maxRatios+minRatios)/2;
+				step = (maxRatios-minRatios)/20;
+
+			$(".color_key rect").each(function() {
+				$(this).css("fill", calculateColor(val));
+				val -= step;
+			});
+		}
+		
+		// init color key text
+		$("#key_val_max")
+			.text(maxRatios.toFixed(3));
+		$("#key_val_mid")
+			.text(((maxRatios+minRatios)/2).toFixed(3))
+		$("#key_val_min")
+			.text(minRatios.toFixed(3));
+		
+		$(".threshold-range")
+			.on("input change", function() {
+				$(".threshold-value")
+					.text($(this).val());
+			})
+			.on("change", function() {
+				updateColors();
+			})
+		
+		$(".colorBelow").on("change", function() {
+			updateColors();
+		})
+		
+		$(".colorAbove").on("change", function() {
+			updateColors();
+		})
+		
+		$("#scaleType").on("change", function() {
+			updateColors();
+		})
+		
+		/* exclude specific value */
+		$("#exclude_checkbox").change(function() {
+			$(this).val($(this).attr(':checked'));
+		})
+		
+		$("#exclude_checkbox").click(function() {
+			if($(this).is(':checked'))
+				$("#exclude_val_input").attr("disabled", false);
+			else
+				$("#exclude_val_input").attr("disabled", true);
+			updateColors();
+		})
+		
+		$("#exclude_val_input").on("change", function() {
+			updateColors();
+		})
+		
+		/* dynamic size adjustments */
+		$("#voroTreemap")
+			.css("width", treemapWidth)
+			.css("height", treemapHeight+5)
+		$("#someControls")
+			.css("width", treemapWidth)
+		
+	});//]]> 
+	</script>
+	
+	<style>
+	
+		text {
+			pointer-events: none;
+		}
+	
+		#wrapper{
+			float: left;
+			overflow: auto;
+		}
+		
+		#key {
+			float: left;
+		}
+		
+		#voroTreemap {
+			float: left;
+			overflow: auto;
+		}
+		
+		#rightBox {
+			float: left;
+		}
+		
+		#someControls {
+			margin-left: 70px;
+		}
+		
+		#sliderLabels {
+			float: left;
+		}
+		
+		#sliders{
+			float: left;
+		}
+		
+		#colorControls{
+			text-align: right;
+		}
+			
+	</style>
+	
+</head>
+
+<body>
+
+<div id="wrapper">
+
+	<div id="key">
+		
+		<svg class="color_key" width="70" height="430"
+			xmlns="http://www.w3.org/2000/svg"
+			xmlns:xlink="http://www.w3.org/1999/xlink">
+			
+			<rect x="50" y="5" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="25" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="45" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="65" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="85" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="105" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="125" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="145" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="165" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="185" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="205" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="225" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="245" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="265" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="285" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="305" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="325" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="345" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="365" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="385" width="12" height="20" style="fill:white;stroke:black"/>
+			<rect x="50" y="405" width="12" height="20" style="fill:white;stroke:black"/>
+			
+			<text class="key_val_text" id="key_val_max" text-anchor="end" x="45" y="20" style="font-size:16px;fill:black;">max</text>
+			<text class="key_val_text" id="key_val_mid" text-anchor="end" x="45" y="220" style="font-size:16px;fill:black;">threshold</text>
+			<text class="key_val_text" id="key_val_min" text-anchor="end" x="45" y="420" style="font-size:16px;fill:black;">min</text>
+		
+		</svg>
+			
+	</div>
+		
+	<div id="voroTreemap">
+
+
+
+	</div>
+	
+	<div id="rightBox">
+	
+		<div id="buttons">
+
+			<input type="radio" name="showNames" id="show_names_level1" value="level1" checked autocomplete="off" />Names Level1<br>
+			<input type="radio" name="showNames" id="show_names_level2" value="level2" autocomplete="off" />Names Level2<br>
+			<input type="radio" name="showNames" id="show_names_level3" value="level3" autocomplete="off" />Names Level3<br>
+			<br>
+			<input type="checkbox" id="hide_polygons_level2" autocomplete="off" />Hide Level2<br>
+			<input type="checkbox" id="hide_polygons_level3" autocomplete="off" />Hide Level3<br>
+			<br>
+			<input type="radio" name="selectRatio" id="select_ratio1" value="ratio1" checked autocomplete="on" />Ratio1<br>
+			<input type="radio" name="selectRatio" id="select_ratio2" value="ratio2" autocomplete="on" />Ratio2<br>
+			<input type="radio" name="selectRatio" id="select_ratio3" value="ratio3" autocomplete="on" />Ratio3<br>
+			<br><br>
+		</div>
+		
+	</div>
+	
+</div>
+
+<div id="someControls">
+
+	<div id="sliderLabels">
+		
+		<label class="zoom-text">Zoom:</label>
+		<br>
+		<label class="threshold-text">Color threshold:</label>
+	
+	</div>
+	
+	<div id="sliders">
+
+		<input type="range" class="zoom-range" min="1" max="10" step="0.1" value="1.0" autocomplete="off">
+		<label class="zoom-percent">100%</label>
+		<br>
+		<input type="range" class="threshold-range" min="-10" max="10" step="0.1" value="0.0" autocomplete="off">
+		<label class="threshold-value">0</label>
+		
+	</div>
+	
+	<div id="colorControls">
+
+		Color range below threshold:
+		<input type="color" class="colorBelow" id="colorBelowLow" value="#00BBCC"> -
+		<input type="color" class="colorBelow" id="colorBelowHigh" value="#0000AA">
+		<br>
+		Color range above threshold:
+		<input type="color" class="colorAbove" id="colorAboveLow" value="#FFAA00"> -
+		<input type="color" class="colorAbove" id="colorAboveHigh" value="#AA0000">
+		<br><br>
+		<input id="exclude_checkbox" type="checkbox" autocomplete="off">
+		Exclude number:
+		<input id="exclude_val_input" type="number" step="1" value="0.0" disabled autocomplete="off">
+		<br><br>
+		Scale type:
+		<select id="scaleType">
+			<option value="lin">linear</option>
+			<option value="exp">exponential</option>
+			<option value="log">logarithmic</option>
+		</select>
+	
+	</div>
+
+</div>
+	
+</body>
+
+</html>

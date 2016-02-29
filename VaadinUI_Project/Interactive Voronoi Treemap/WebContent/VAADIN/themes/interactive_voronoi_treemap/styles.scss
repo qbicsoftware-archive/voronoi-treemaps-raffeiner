@@ -1,0 +1,9 @@
+@import "addons.scss";
+@import "interactive_voronoi_treemap.scss";
+
+/* This file prefixes all rules with the theme name to avoid causing conflicts with other themes. */
+/* The actual styles should be defined in interactive_voronoi_treemap.scss */
+.interactive_voronoi_treemap {
+  @include addons;
+  @include interactive_voronoi_treemap;
+}

@@ -8,28 +8,26 @@
 	<script type='text/javascript' src="http://code.jquery.com/jquery-latest.min.js"></script>
 	<script type='text/javascript'>//<![CDATA[
 	$(document).ready(function() {
-	
-	var svgObject = document.getElementById("treemapSVG");
-	
-	svgObject.onload = function() {
-	
-		/* data variables */
-		var svgDoc = svgObject.contentDocument,
-			svgRoot = svgDoc.documentElement;
 		
-		var treemapWidth = $(".treemap", svgDoc).width(),
-			treemapHeight = $(".treemap", svgDoc).height(),
+		/* data holder */
+		
+		~TreemapDepth~
+		//~LevelNames~
+		~RatioCount~
+		//~RatioNames~
+		~SVG~
+		
+		document.getElementById("voroTreemap").innerHTML = svgContent;
+		
+		var treemapWidth = $(".treemap").width(),
+			treemapHeight = $(".treemap").height(),
 			ratios = [];
 		
-		$("polygon[ratio1]", svgRoot).each(function() {
-			ratios.push($(this).attr("ratio1"));
-		})
-		$("polygon[ratio2]", svgRoot).each(function() {
-			ratios.push($(this).attr("ratio2"));
-		})
-		$("polygon[ratio3]", svgRoot).each(function() {
-			ratios.push($(this).attr("ratio3"));
-		})
+		for (var i=0; i<ratioCount; i++) {
+			$("polygon[ratio" + (i+1) +"]").each(function() {
+				ratios.push($(this).attr("ratio"+(i+1)));
+			})
+		}
 		
 		var minRatios = Math.min.apply(Math, ratios),
 			maxRatios = Math.max.apply(Math, ratios)
@@ -57,38 +55,32 @@
 			return a - b;
 		}
 		
-		/* initializations */
-		
-		//set polygons stroke-width
-		$("polygon.lvl1", svgRoot)
+		/* initialize polygons stroke-width */
+		$("polygon.lvl1")
 			.css("stroke-width", 7)
-		$("polygon.lvl2", svgRoot)
+		$("polygon.lvl2")
 			.css("stroke-width", 4)
-		$("polygon.lvl3", svgRoot)
+		$("polygon.lvl3")
 			.css("stroke-width", 2)
 		
-		/*//set polygons z-positioning
-		$("polygon.lvl2", svgRoot)
+		/* initialize polygons z-positioning */
+		$("polygon.lvl2")
 			.css("fill", "none")
 			.appendTo("#polygons");
-		$("polygon.lvl1", svgRoot)
+		$("polygon.lvl1")
 			.css("fill", "none")
-			.appendTo("#polygons");*/
+			.appendTo("#polygons");
 			
-		//set shown text to level1
-		$("text", svgRoot)
+		/* initialize shown text to level1 */
+		$(".treemap text")
 			.hide();
-		$("text.lvl1", svgRoot)
+		$("text.lvl1")
 			.show();
-		
-		//set text to be non-interactable
-		$("text", svgRoot)
-			.css("pointer-events", "none");
-		
-		
+			
 		/* add mouse interaction */
-		$("polygon.lvl3", svgRoot)
-			/*.hover(function() {
+		$("polygon.lvl3")
+		/*
+			.hover(function() {
 				$(this)
 					.css("stroke-width", 6)
 					//move to front
@@ -99,120 +91,90 @@
 					.css("stroke-width", 2);
 					
 				//restore z-positioning
-				$("polygon.lvl2", svgRoot)
+				$("polygon.lvl2")
 					.appendTo("#polygons");
-				$("polygon.lvl1", svgRoot)
+				$("polygon.lvl1")
 					.appendTo("#polygons");
-				})*/
-				
+				})
+		*/
 			//link to custom url/pdb on click
 			.click(function() {
 				window.open("http://www.rcsb.org/pdb/protein/" + $(this).attr("name"));
 			});
 		
-		/* switch shown names with radio buttons */
-		$("input[name='showNames']").change(function() {
-			if ($(this).val() == "level1") {
-				$("text", svgRoot)
-					.hide();
-				$("text.lvl1", svgRoot)
-					.show();
-			}else if($(this).val() == "level2") {
-				$("text", svgRoot)
-					.hide();
-				$("text.lvl2", svgRoot)
-					.show();
-			}else if($(this).val() == "level3") {
-				$("text", svgRoot)
-					.hide();
-				$("text.lvl3", svgRoot)
-					.show();
-			}
+		/* switch shown names with dropdown menu */
+		//adding name dropdown options
+		for (var i=1; i<=depth; i++) {
+			$("#dropdownNames")
+				.append(new Option("Level"+i,"lvl"+i));
+		}
+		
+		$("#dropdownNames").change(function() {
+			$(".treemap text")
+				.hide();
+			$("text." + $(this).val())
+				.show();
 		});
 		
-		/* checkbox to hide polygon level2 */
-		$("#hide_polygons_level2").change(function() {
-			$("#hide_polygons_level2").val($(this).is(':checked'));
-		});
-
-		$("#hide_polygons_level2").click(function() {
-			if ($(this).is(':checked')) {
-				//fill level1, hide level2
-				$("polygon.lvl1", svgRoot)
-					.css("fill", "gray");
-				$("polygon.lvl2", svgRoot)
-					.hide();
-				
-				//click radio button for level1 names and disable level2
-				$("#show_names_level1")
-						.click();
-				$("#show_names_level2")
-					.attr("disabled", true);
-				
-				//click and disable checkbox for level3 polygons
-				if(!$("#hide_polygons_level3").is(':checked')){
-					$("#hide_polygons_level3")
-						.click();
+		/* switch shown polygons with dropdown menu */
+		//adding polygon dropdown options
+		for (var i=2; i<=depth; i++) {
+			$("#dropdownPolygons")
+				.append(new Option("Level"+i,"lvl"+i));
+		}
+		
+		$("#dropdownPolygons").change(function() {
+			var selectedIndex = $("#dropdownPolygons option:selected").index();
+			if (selectedIndex < 1) {
+				$("polygon")
+					.show()
+				for (var i=1; i<depth; i++) {
+					$("polygon.lvl"+i)
+						.css("fill", "none")
 				}
-				$("#hide_polygons_level3")
-					.attr("disabled", true);				
-			} else {
-				//show level2, unfill level1
-				$("polygon.lvl2", svgRoot)
-					.show();
-				$("polygon.lvl1", svgRoot)
-					.css("fill", "none");
-				
-				//reenable buttons
-				$("#show_names_level2")
-					.attr("disabled", false);
-				$("#hide_polygons_level3")
-					.attr("disabled", false);
+				$("#dropdownNames option")
+					.prop("disabled", false)
+				return;
 			}
-		});
-		
-		/* checkbox to hide polygon level3 */
-		$("#hide_polygons_level3").change(function() {
-			$("#hide_polygons_level3").val($(this).is(':checked'));
-		});
-
-		$("#hide_polygons_level3").click(function() {
-			if ($(this).is(':checked')) {
-				//fill level2, hide level3
-				$("polygon.lvl2", svgRoot)
-					.css("fill", "gray");
-				$("polygon.lvl3", svgRoot)
-					.hide();
-				
-				//click radio button for level2 names if level3 was checked, fill level2 polygons and disable level3
-				if($("#show_names_level3").is(":checked")) {
-					$("#show_names_level2")
-						.click();
+			for (var i=1; i<=depth; i++) {
+				if (i < selectedIndex) {
+					$("polygon.lvl"+i)
+						.css("fill", "none")
+						.show()
+				} else if (i == selectedIndex) {
+					$("polygon.lvl"+i)
+						.css("fill", "gray")
+						.show()
+				} else
+					$("polygon.lvl"+i)
+						.hide()
+			}
+			//disable names of hidden polygon levels
+			if ($("#dropdownNames option:selected").index() >= selectedIndex)
+				$("#dropdownNames>option:eq("+(selectedIndex-1)+")")
+					.prop("selected", true)
+					.change()
+				$("#dropdownNames option:lt("+selectedIndex+")")
+					.prop("disabled", false)
+				if (selectedIndex > 0) {
+					$("#dropdownNames option:gt("+(selectedIndex-1)+")")
+						.prop("disabled", true)
 				}
-				$("#show_names_level3")
-					.attr("disabled", true);
-					
-			} else {
-				//show level3, unfill level2
-				$("polygon.lvl3", svgRoot)
-					.show();
-				$("polygon.lvl2", svgRoot)
-					.css("fill", "none");
-				
-				//reenable buttons
-				$("#show_names_level3")
-					.attr("disabled", false);
-			}
 		});
 		
-		/* switch ratios with radio buttons */			
+		/* switch ratios with dropdown menu */	
+		//adding ratio dropdown options
+		for (var i=1; i<=ratioCount; i++) {
+			$("#dropdownRatios")
+				.append(new Option("Ratio"+i,"ratio"+i));
+		}		
 		function updateRatios() {
 			updateTooltips();
 			updateColors();
 		}
 		updateRatios();
 		
-		$("input[name='selectRatio']").on("change", function() {
+		$("#dropdownRatios").on("change", function() {
 			updateRatios();
 		})
 			
@@ -220,15 +182,15 @@
 		$(".zoom-range").on("input change", function() {
 			$(".zoom-percent")
 				.text(Math.round($(this).val()*100) + "%");
-			$(".treemap", svgDoc)
+			$(".treemap")
 				.attr("width", treemapWidth*$(this).val())
 				.attr("height", treemapHeight*$(this).val())
 		})
 		
 		/* tooltips */
 		function updateTooltips() {
-			$("polygon.lvl3", svgRoot).attr("title", function() {
-				return $(this).attr("name")+"\n"+$(this).attr($("input[name='selectRatio']:checked").val());
+			$("polygon.lvl3").attr("title", function() {
+				return $(this).attr("name")+"\n"+$(this).attr($("#dropdownRatios").val());
 			});
 		}
 		
@@ -258,8 +220,8 @@
 			.attr("max", Math.ceil(maxRatios))
 			
 		function updateColors() {
-			$("polygon.lvl3", svgRoot).css("fill", function() {
-				var val = parseFloat($(this).attr($("input[name='selectRatio']:checked").val()));
+			$("polygon.lvl3").css("fill", function() {
+				var val = parseFloat($(this).attr($("#dropdownRatios").val()));
 				return calculateColor(val);
 			});
 			updateColorKey();
@@ -268,6 +230,7 @@
 		// calculate colors
 		function calculateColor(val) {
 			var threshold = $(".threshold-range").val();
+			/*
 				exclude = $("#exclude_val_input");
 			
 			// exclude specific value
@@ -275,10 +238,7 @@
 				if(val==exclude.val())
 					return "rgb(200,200,200)";
 			}
-			
-			// value equals threshold	
-			if(val==threshold)
-				return "rgb(170,170,170)";
+			*/
 			
 			var	min = minRatios,
 				max = maxRatios,
@@ -292,46 +252,6 @@
 				mid1 = new Color(mid1Input.r, mid1Input.g, mid1Input.b),
 				mid2 = new Color(mid2Input.r, mid2Input.g, mid2Input.b),
 				end = new Color(endInput.r,endInput.g,endInput.b);
-					
-			//exponential scaling
-			if($("#scaleType").val()=="exp"){
-				if(val<0)
-					val = -Math.exp(Math.abs(val));
-				else
-					val = Math.exp(val);
-				if(min<0)
-					min = -Math.exp(Math.abs(min));
-				else
-					min = Math.exp(min);
-				if(max<0)
-					max = -Math.exp(Math.abs(max));
-				else
-					max = Math.exp(max);
-				if(threshold<0)
-					threshold = -Math.exp(Math.abs(threshold));
-				else
-					threshold = Math.exp(threshold);
-			}
-			
-			//logarithmic scaling
-			if($("#scaleType").val()=="log"){
-				if(val<0)
-					val = -Math.pow(10, Math.abs(val));
-				else
-					val = Math.pow(10, val);
-				if(min<0)
-					min = -Math.pow(10, Math.abs(min));
-				else
-					min = Math.pow(10, min);
-				if(max<0)
-					max = -Math.pow(10, Math.abs(max));
-				else
-					max = Math.pow(10, max);
-				if(threshold<0)
-					threshold = -Math.pow(10, Math.abs(threshold));
-				else
-					threshold = Math.pow(10, threshold);
-			}
 			
 			if(val<threshold){
 				end = mid1;
@@ -340,6 +260,10 @@
 			else if(val>threshold){
 				start = mid2;
 				min = threshold;
+			}
+			else if(val==threshold) {
+				start = mid1;
+				end = mid2;
 			}
 			
 			var	startColors = start.getColors(),
@@ -366,11 +290,11 @@
 		
 		// init color key text
 		$("#key_val_max")
-			.text(maxRatios.toFixed(3));
+			.text(maxRatios.toFixed(0));
 		$("#key_val_mid")
-			.text(((maxRatios+minRatios)/2).toFixed(3))
+			.text(((maxRatios+minRatios)/2).toFixed(0))
 		$("#key_val_min")
-			.text(minRatios.toFixed(3));
+			.text(minRatios.toFixed(0));
 		
 		$(".threshold-range")
 			.on("input change", function() {
@@ -389,10 +313,6 @@
 			updateColors();
 		})
 		
-		$("#scaleType").on("change", function() {
-			updateColors();
-		})
-		
 		/* exclude specific value */
 		$("#exclude_checkbox").change(function() {
 			$(this).val($(this).attr(':checked'));
@@ -406,20 +326,25 @@
 			updateColors();
 		})
 		
+		/*
 		$("#exclude_val_input").on("change", function() {
 			updateColors();
 		})
+		*/
 		
 		/* dynamic size adjustments */
 		$("#voroTreemap")
 			.css("width", treemapWidth)
 			.css("height", treemapHeight+5)
-			
-	}
+		
 	});//]]> 
 	</script>
 	
 	<style>
+	
+		text {
+			pointer-events: none;
+		}
 	
 		#treemapWrapper{
 			float: left;
@@ -522,8 +447,6 @@
 		
 	<div id="voroTreemap">
 
-		<object data="VoroTreemap.svg" type="image/svg+xml" id="treemapSVG"></object>
-
 	</div>
 		
 </div>
@@ -540,53 +463,28 @@
 		
 		<table class="optionTable">
 			<tr>
-				<td>Names Level1</td>
-				<td><input type="radio" name="showNames" id="show_names_level1" value="level1" checked autocomplete="off" /></td>			
-			</tr>
-			<tr>
-				<td>Names Level2</td>
-				<td><input type="radio" name="showNames" id="show_names_level2" value="level2" autocomplete="off" /></td>			
-			</tr>
-			<tr>
-				<td>Names Level3</td>
-				<td><input type="radio" name="showNames" id="show_names_level3" value="level3" autocomplete="off" /></td>			
+				<td>Show Names</td>
+				<td><select id="dropdownNames">
+				</select></td>
 			</tr>
 			<tr class="tableSpacer">
 				<td></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Hide polygons Level2</td>
-				<td><input type="checkbox" id="hide_polygons_level2" autocomplete="off" /></td>
-			</tr>
-			<tr>
-				<td>Hide polygons Level3</td>
-				<td><input type="checkbox" id="hide_polygons_level3" autocomplete="off" /></td>
+				<td>Hide Polygons</td>
+				<td><select id="dropdownPolygons">
+					<option value="none">None</option>
+				</select></td>
 			</tr>
 			<tr class="tableSpacer">
 				<td></td>
 				<td></td>
 			</tr>
 			<tr>
-				<td>Ratios1</td>
-				<td><input type="radio" name="selectRatio" id="select_ratio1" value="ratio1" checked autocomplete="on" /></td>
-			</tr>
-			<tr>
-				<td>Ratios2</td>
-				<td><input type="radio" name="selectRatio" id="select_ratio2" value="ratio2" autocomplete="on" /></td>
-			</tr>
-			<tr>
-				<td>Ratios3</td>
-				<td><input type="radio" name="selectRatio" id="select_ratio3" value="ratio3" autocomplete="on" /></td>
-			</tr>
-			<tr class="tableSpacer">
-				<td></td>
-				<td></td>
-			</tr>
-			<tr>
-				<td>Exclude number</td>
-				<td><input id="exclude_checkbox" type="checkbox" autocomplete="off">
-				<input id="exclude_val_input" type="number" step="1" value="0.0" disabled autocomplete="off"></td>
+				<td>Value Set</td>
+				<td><select id="dropdownRatios">
+				</select></td>
 			</tr>
 			<tr class="tableSpacer">
 				<td></td>
@@ -620,29 +518,21 @@
 				<td></td>
 			</tr>
 			<tr>
-				<td>Below threshold</td>
-				<td><input type="color" class="colorBelow" id="colorBelowLow" value="#00BBCC"> -
-				<input type="color" class="colorBelow" id="colorBelowHigh" value="#0000AA"></td>
+				<td>Below Threshold</td>
+				<td><input type="color" class="colorBelow" id="colorBelowHigh" value="#0000AA"> -
+				<input type="color" class="colorBelow" id="colorBelowLow" value="#00BBCC"></td>
 			</tr>
 			<tr class="tableSpacer">
 				<td></td>
 				<td></td>
 			</tr><tr>
-				<td>Above threshold</td>
+				<td>Above Threshold</td>
 				<td><input type="color" class="colorAbove" id="colorAboveLow" value="#FFAA00"> -
 				<input type="color" class="colorAbove" id="colorAboveHigh" value="#AA0000"></td>
-			</tr>
+			</tr>			
 			<tr class="tableSpacer">
 				<td></td>
 				<td></td>
-			</tr>
-			</tr><tr>
-				<td>Scale type</td>
-				<td><select id="scaleType">
-					<option value="lin">linear</option>
-					<option value="exp">exponential</option>
-					<option value="log">logarithmic</option>
-				</select></td>
 			</tr>
 		</table>
 		
